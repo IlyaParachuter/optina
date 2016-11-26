@@ -3,22 +3,20 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package optina;
 
 /**
  *
  * @author Goncharov.Ilia
  */
-public class CharacterProcessing implements InterfaceCharacterProcessing {
-    protected InterfaceCharacterProcessing component;
-    
-    public CharacterProcessing(InterfaceCharacterProcessing c)
+public class ItemProcessing implements InterfaceItemProcessing {
+    protected InterfaceItemProcessing component;
+
+    public ItemProcessing(InterfaceItemProcessing c)
     {component = c;}
-    public void reset()
-    {};
-    public void process(char c, int ofs)
-    {component.process(c, ofs);}
+
+    public void process(BaseItem bi)
+    {component.process(bi);}
     public void flush()
     {component.flush();}
     public void close()

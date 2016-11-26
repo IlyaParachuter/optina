@@ -12,10 +12,10 @@ package optina;
 public class HyperLinkItemLn extends HyperLinkItem {
     private int ln;
     
-    public HyperLinkItemLn(HyperLinkItem other, int vln)
+    public HyperLinkItemLn(HyperLinkItem other, int ln)
     {
         super(other);
-        ln = vln;
+        this.ln = ln;
         getMngr().register(this);
     }
     

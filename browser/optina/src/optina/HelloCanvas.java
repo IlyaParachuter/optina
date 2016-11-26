@@ -54,7 +54,9 @@ public class HelloCanvas extends Canvas implements CommandListener {
     {
         //System.out.println("Hit!");
         if (WB == null)
-            WB = new WikiBrowser(this, myDisplay, g, "index");
+            //WB = new WikiBrowser(this, myDisplay, g, "index");
+            WB = new WikiBrowser(this, myDisplay, g, "old:2par:start");
+            //WB = new WikiBrowser(this, myDisplay, g, "old:gen:01:00");
 
         WB.draw();
     }

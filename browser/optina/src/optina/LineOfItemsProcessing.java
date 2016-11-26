@@ -10,15 +10,14 @@ package optina;
  *
  * @author Goncharov.Ilia
  */
-public class CharacterProcessing implements InterfaceCharacterProcessing {
-    protected InterfaceCharacterProcessing component;
+public class LineOfItemsProcessing implements InterfaceLineOfItemsProcessing {
+    private InterfaceLineOfItemsProcessing component;
     
-    public CharacterProcessing(InterfaceCharacterProcessing c)
+    public LineOfItemsProcessing(InterfaceLineOfItemsProcessing c)
     {component = c;}
-    public void reset()
-    {};
-    public void process(char c, int ofs)
-    {component.process(c, ofs);}
+
+    public void process(LineOfItems loi)
+    {component.process(loi);}
     public void flush()
     {component.flush();}
     public void close()

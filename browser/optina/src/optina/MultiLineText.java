@@ -20,49 +20,61 @@ package optina;
  * ledkov@inbox.ru
  */
 
+import java.io.*;
 import java.util.Vector;
+import javax.microedition.io.Connector;
+import javax.microedition.io.file.FileConnection;
 import javax.microedition.lcdui.*;
 
 public class MultiLineText {
     private int x,y,w,h,fsz,fst,fty;    //Размер ограничивающего прямоугольника;
     private int y0;         //Положение верхнего края текста
     private int dy;         //Шаг при прокрутке текста
-    private int textheight; //Общая высота текста
     private ItemsLines StringLines;    
     private Graphics g;
     private int gx,gy,gw,gh; //Исходная область
     private HyperLinkManager hyp_mngr;
     private Canvas canv;
-    private int nav_mode;
+    private InputStream is;
+    private FsaDrawLineOfItems fsa_dloi;
+    private InterfaceCharacterProcessing CharProcessing;
+    /// del
     public final int nm_txt = 0;
     public final int nm_hyp = 1;
+    private int nav_mode;
+
     
-    public MultiLineText(Canvas vcanv, HyperLinkManager vhyp_mngr)
+    public MultiLineText(
+            Graphics g,
+            Canvas canv,
+            HyperLinkManager hyp_mngr,
+            int x, 
+            int y,
+            int width,
+            int height,
+            String path
+    )
     {
-        canv = vcanv;
-        hyp_mngr = vhyp_mngr;
-        setNavMode(nm_txt);
+        this.canv = canv;
+        this.hyp_mngr = hyp_mngr;
+        fsa_dloi = null;
+        CharProcessing = null;
+
+        fsa_dloi = new FsaDrawLineOfItems(g, path, x, y, width, height, hyp_mngr);
+        InterfaceLineOfItemsProcessing LineOfItemsProcessing = fsa_dloi;
+        InterfaceItemProcessing ItemProcessing = new FsaMakeLineOfItems(LineOfItemsProcessing, width);
+        CharProcessing = new FsaWikiParser(ItemProcessing, g, 0, hyp_mngr);
+        CharProcessing = new FsaWikiLineFeedParser(CharProcessing);
+        CharProcessing = new FsaUtf8Decoder(CharProcessing);
+        fsa_dloi.setCharProcessing(CharProcessing);
     }
-    
-    final public void setNavMode(int nm)
-    {nav_mode = nm;}
 
     public void PrevHyp()
-    {
-        setNavMode(nm_hyp);
-        hyp_mngr.Prev();
-    }
-
+    {fsa_dloi.PrevHyp();}
     public void NextHyp()
-    {
-        setNavMode(nm_hyp);
-        hyp_mngr.next();
-    }
-
+    {fsa_dloi.NextHyp();}
     public void FollowHyp()
-    {
-        //MLT.setNavMode(MLT.nm_hyp);
-    }
+    {fsa_dloi.FollowHyp();}
     
     public String getCurrentLink()
     {
@@ -71,49 +83,17 @@ public class MultiLineText {
         return ((HyperLinkItemLn)LineNumbers.elementAt(0)).getLink();
     }
 
-    public void  MoveDown()
-    {
-        setNavMode(nm_txt);
-        if (textheight>h)
-        {            
-            y0 -= dy;
-            if (h-y0>textheight) {y0=h-textheight;}
-        }
-    }
-    
     public void MoveUp()
-    {
-        setNavMode(nm_txt);
-        if (textheight>h)
-        {
-            y0 += dy;
-            if (y0>0){y0=0;}
-        }
-        
-    }
+    {fsa_dloi.MoveUp();}
+    public void  MoveDown()
+    {fsa_dloi.MoveDown();}
 
     public void PageUp()
-    {
-        setNavMode(nm_txt);
-        if (textheight>h)
-        {
-           y0 += h;
-           if (y0>0){y0=0;} 
-        }
-        
-    }
-
+    {fsa_dloi.PageUp();}
     public void PageDown()
-    {
-        setNavMode(nm_txt);
-        if (textheight>h)
-        {
-            y0 -= h;
-            if (h-y0>textheight) {y0=h-textheight;}
-        }         
-    }
+    {fsa_dloi.PageDown();}
 
-    public void SetTextPar(
+    public void _SetTextPar(
             int x, 
             int y,
             int width,
@@ -140,8 +120,9 @@ public class MultiLineText {
         //Разбиваем строку на массив строк
         StringLines=null;
         StringLines =new ItemsLines(iq);
-        int end_of_line=0,next_space=0,start_of_line=0,next_width,line_width=0;   //Сещение от начала строки
-        int imax=iq.length();   //Длина строки
+        long end_of_line=0,next_space=0,start_of_line=0;
+        int next_width,line_width=0;   //Сещение от начала строки
+        long imax=iq.length();   //Длина строки
         boolean isexit=true;
         y0=0;
         while (isexit)
@@ -216,7 +197,7 @@ public class MultiLineText {
             }            
         }
 
-        int i = start_of_line;
+        long i = start_of_line;
         while ((nl = iq.indexOf('\n', i, imax)) > -1)
         {
             StringLines.addElement(i, nl);
@@ -225,12 +206,24 @@ public class MultiLineText {
         }
         StringLines.addElement(i, imax);
 
-        textheight = 0;
+        /*textheight = 0;
         for (i = 0; i < StringLines.size(); i++)
             textheight += StringLines.elementAt(i).getHeight();
+        */
     }
     
     public void DrawMultStr()
+    {
+        /*int i = 0, i_first = 0;
+        int y1;
+        y1 = y0;*/
+        fsa_dloi.draw();
+        
+        //hyp_mngr.reset();
+
+    }
+
+    public void _DrawMultStr()
     {
         int i = 0, i_first = 0;
         int i_cnt = StringLines.size();
@@ -238,7 +231,7 @@ public class MultiLineText {
         y1 = y0;
         LineOfItems loi = null;
 
-        hyp_mngr.reset();
+        hyp_mngr.ResetDrawed();
         for (; i < i_cnt; i++)
         {
             loi = (LineOfItems)StringLines.elementAt(i);

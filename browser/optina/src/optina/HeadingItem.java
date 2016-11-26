@@ -18,19 +18,19 @@ public class HeadingItem extends PlainTextItem {
     private static Font font;
     private static int color;
     
-    public HeadingItem(Graphics g, int vstart, int vend, String vtext, int vlevel)
+    public HeadingItem(Graphics g, long ofs, long start, long end, String text, int level)
     {
-        super(g, vstart, vend, vtext);
-        level = vlevel;
+        super(g, ofs, start, end, text);
+        this.level = level;
     }
     
-    public HeadingItem(PlainTextItem other, int vlevel)
+    public HeadingItem(PlainTextItem other, int level)
     {
         super(other);
-        level = vlevel;
+        this.level = level;
     }
     
-    public BaseItem part(int i0, int i1)
+    public BaseItem part(long i0, long i1)
     {return new HeadingItem((PlainTextItem)super.part(i0, i1), level);}
     
     public void init()

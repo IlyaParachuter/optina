@@ -24,7 +24,7 @@ public class HyperLinkManager {
         current = -1;
         total = 0;
         loop_mode = true;
-        reset();
+        ResetDrawed();
         HypNumber2Ln = new Hashtable();
     }
     
@@ -87,7 +87,7 @@ public class HyperLinkManager {
     public int getLastDrawed()
     {return last_drawed;}
     
-    public void reset()
+    public void ResetDrawed()
     {
         first_drawed = -1;
         last_drawed = -1;

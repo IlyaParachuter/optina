@@ -19,9 +19,14 @@ public class PlainTextItem extends BaseItem {
     private static Font font;
     private static int color;
     
-    public PlainTextItem(Graphics g, int vstart, int vend, String vtext)
+    public PlainTextItem(Graphics g, long ofs, long start, long end, String text)
     {
-        super(g, vstart, vend);
+        this(g, ofs, start, end, text, false);
+    }
+    
+    public PlainTextItem(Graphics g, long ofs, long start, long end, String vtext, boolean is_nf_part)
+    {
+        super(g, ofs, start, end, is_nf_part);
         setText(vtext);
     }
     
@@ -40,10 +45,11 @@ public class PlainTextItem extends BaseItem {
         width = stringWidth(0, text_len);
     }
 
-    public BaseItem part(int i0, int i1)
+    public BaseItem part(long i0, long i1)
     {
-        int start = getStart();
-        return new PlainTextItem(getGraphics(), i0, i1, text.substring(i0-start, i1+1-start));
+        long start = getStart();
+        int beg = (int)(i0 - start);
+        return new PlainTextItem(getGraphics(), getOfs(), i0, i1, text.substring(beg, (int)(i1+1-start)), beg > 0);
     }
 
     public void init()
@@ -66,7 +72,9 @@ public class PlainTextItem extends BaseItem {
     public int length()
     {return text.length();}
     public int indexOf(int ch, int i)
-    {return text.indexOf(ch, i);}
+    {
+        return text.indexOf(ch, i);
+    }
 
     public int indexOf(int ch, int i0, int i1)
     {

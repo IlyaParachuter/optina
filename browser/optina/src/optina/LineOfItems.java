@@ -13,25 +13,43 @@ import java.util.Vector;
  */
 public class LineOfItems {
     public Vector line;
-    public int height;
+    private int ln;
+    public int height = 0; // высота в пикселях
+    public long ofs = 0; // смещение в файле до начала токена
+    public boolean is_nf_part = false; // это не первая часть
+    public long start = 0;
     
-    public LineOfItems()
+    public LineOfItems(int ln)
     {
-        height = 0;
         line = new Vector();
+        this.ln = ln;
     }
 
     public void addElement(BaseItem bi)
     {
+        if(line.size() == 0)
+        {
+            ofs = bi.getOfs();
+            is_nf_part = bi.IsNfPart();
+            start = bi.getStart();
+        }
         int bi_height = bi.getHeight();
         if (bi_height > height)
             height = bi_height;
 
         line.addElement(bi);
     }
-    
+
+    public int getLineNumber()
+    {return ln;}
     public int getHeight()
     {return height;}
+    public long getOfs()
+    {return ofs;}
+    public boolean IsNfPart()
+    {return is_nf_part;}
+    public long getStart()
+    {return start;}
     
     public void draw(int x, int y)
     {

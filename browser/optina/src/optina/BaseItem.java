@@ -13,32 +13,42 @@ import javax.microedition.lcdui.Graphics;
  * @author Goncharov.Ilia
  */
 abstract public class BaseItem {
-    private int start, end;
+    private long ofs, start, end;
+    private boolean is_nf_part;
     private Graphics g;
     
-    public BaseItem(Graphics vg, int vstart, int vend)
+    public BaseItem(Graphics vg, long ofs, long start, long end, boolean is_nf_part)
     {
-        start = vstart;
-        end = vend;
+        this.ofs = ofs;
+        this.start = start;
+        this.end = end;
+        this.is_nf_part = is_nf_part;
         g = vg;
         init();
+        String s;
     }
     
     public BaseItem(BaseItem other)
     {
+        ofs = other.ofs;
         start = other.start;
         end = other.end;
+        is_nf_part = other.is_nf_part;
         g = other.g;
     }
-    
-    public int getStart()
+
+    public long getOfs()
+    {return ofs;}
+    public long getStart()
     {return start;}
-    public int getEnd()
+    public long getEnd()
     {return end;}
+    public boolean IsNfPart()
+    {return is_nf_part;}
     public Graphics getGraphics()
     {return g;}
 
-    abstract public BaseItem part(int i0, int i1);
+    abstract public BaseItem part(long i0, long i1);
 
     abstract public void init();
     abstract public Font getFont();

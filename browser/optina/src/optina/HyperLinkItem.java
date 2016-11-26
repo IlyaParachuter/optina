@@ -27,20 +27,20 @@ public class HyperLinkItem extends PlainTextItem {
     private static int colorInvSelected, colorInvUnselected;
     private boolean valid; // true, если ссылка указывает на существующий файл.
     
-    public HyperLinkItem(Graphics g, HyperLinkManager vmngr, int vstart, int vend, String vtext, int vnumber, String vlink)
+    public HyperLinkItem(Graphics g, long ofs, HyperLinkManager mngr, long start, long end, String text, int number, String link)
     {
-        super(g, vstart, vend, vtext);
-        mngr = vmngr;
-        number = vnumber;
-        setLink(vlink);
+        super(g, ofs, start, end, text);
+        this.mngr = mngr;
+        this.number = number;
+        setLink(link);
     }
     
-    public HyperLinkItem(PlainTextItem other, HyperLinkManager vmngr, int vnumber, String vlink, boolean vvalid)
+    public HyperLinkItem(PlainTextItem other, HyperLinkManager mngr, int number, String link, boolean valid)
     {
         super(other);
-        mngr = vmngr;
-        number = vnumber;
-        setLink(vlink, vvalid);
+        this.mngr = mngr;
+        this.number = number;
+        setLink(link, valid);
     }
     
     public HyperLinkItem(HyperLinkItem other)
@@ -91,7 +91,7 @@ public class HyperLinkItem extends PlainTextItem {
     public String getLink()
     {return valid ? link : null;}
     
-    public BaseItem part(int i0, int i1)
+    public BaseItem part(long i0, long i1)
     {
         return new HyperLinkItem((PlainTextItem)super.part(i0, i1), mngr, number, link, valid);
     }

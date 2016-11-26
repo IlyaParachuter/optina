@@ -12,7 +12,7 @@ import javax.microedition.lcdui.*;
  *
  * @author Goncharov.Ilia
  */
-public class FsaWikiParser implements InterfaceCharacterProcessing {
+public class FsaWikiParser extends ItemProcessing implements InterfaceCharacterProcessing {
     final int fsa_start = 0;
     final int fsa_hyp_start = 1;
     final int fsa_hyp_start_c2 = 2;
@@ -21,35 +21,40 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
     final int fsa_heading_title = 5;
     final int fsa_heading_end = 6;
 
-    private int state;
-    private int src_pos;
-    private int dst_start;
-    private int dst_end;
-    private int item_start;
-    private int item_mid;
-    private int plain_text_start;
+    private long ofs = 0;
+    private int state = fsa_start;
+    private long i;
+    private long dst_start;
+    private long dst_end;
+    private long item_mid;
+    private long plain_text_start;
     private int heading_lvl;
     private int heading_lvl_end;
     private int numhyp;
-    private String splain_text;
-    private String sbuf1;
-    private String sbuf2;
-    private Vector queue;
+    private long plain_text_ofs = 0;
+    private String plain_text;
+    private String buf1;
+    private String buf2;
+    //private Vector queue;
     private HyperLinkManager hyp_mngr;
     private Graphics g;
     
-    public FsaWikiParser(Graphics vg, HyperLinkManager vhyp_mngr, Vector vqueue)
+    public FsaWikiParser(InterfaceItemProcessing c, Graphics g, int ofs, HyperLinkManager hyp_mngr)
     {
-        g = vg;
-        hyp_mngr = vhyp_mngr;
-        queue = vqueue;
-        src_pos = 0;
+        super(c);
+        this.g = g;
+        this.hyp_mngr = hyp_mngr;
+        reset();
+    }
+    
+    public void reset()
+    {
+        i = 0;
         dst_start = 0;
         dst_end = 0;
-        splain_text = "";
-        sbuf1 = "";
-        sbuf2 = "";
-        item_start = 0;
+        plain_text = "";
+        buf1 = "";
+        buf2 = "";
         item_mid = 0;
         plain_text_start = 0;
         heading_lvl = 0;
@@ -57,36 +62,37 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
         numhyp = -1;
     }
     
-    public void close()
+    public void flush()
     {
-        if (src_pos > plain_text_start)
+        if (i > plain_text_start)
         {
-            int splain_text_len = splain_text.length() - 1;
+            int splain_text_len = plain_text.length() - 1;
             dst_end = dst_start + splain_text_len - 1;
-            PlainTextItem plt = new PlainTextItem(g, dst_start, dst_end, splain_text.substring(0, splain_text_len));
+            PlainTextItem plt = new PlainTextItem(g, plain_text_ofs, dst_start, dst_end, plain_text.substring(0, splain_text_len));
             dst_start = dst_end + 1;
-            splain_text = "";
-            queue.addElement(plt);
+            plain_text_ofs = ofs;
+            plain_text = "";
+            super.process(plt);
         }
+        super.flush();
     }
 
-    final public void process(char c)
+    final public void process(char c, int ofs)
     {
-        splain_text += c;
+        plain_text += c;
 
         switch (state)
         {
             case fsa_start:
+                this.ofs = ofs;
                 boolean bHit = true;
                 switch (c)
                 {
                     case '[':
-                        item_start = src_pos;
                         item_mid = -1;
                         state = fsa_hyp_start;
                         break;
                     case '=':
-                        item_start = src_pos;
                         heading_lvl= 1;
                         state = fsa_heading_start;
                         break;
@@ -95,15 +101,17 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
                             bHit = false;
                 }
 
-                if (bHit && (src_pos > plain_text_start))
+                if (bHit && (i > plain_text_start))
                 {
-                    int splain_text_len = splain_text.length() - 1;
+                    int splain_text_len = plain_text.length() - 1;
                     dst_end = dst_start + splain_text_len - 1;
-                    PlainTextItem plt = new PlainTextItem(g, dst_start, dst_end, splain_text.substring(0, splain_text_len));
+                    PlainTextItem plt = new PlainTextItem(g, plain_text_ofs, dst_start, dst_end, plain_text.substring(0, splain_text_len));
                     dst_start = dst_end + 1;
-                    splain_text = "";
-                    queue.addElement(plt);
-
+                    plain_text_ofs = ofs;
+                    plain_text = "";
+                    //queue.addElement(plt);
+                    super.process(plt);
+                    plain_text_start = i + 1;
                 }
                 break;
 
@@ -111,7 +119,7 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
             case fsa_hyp_start:
                 if (c == '[')
                 {
-                    sbuf1 = "";
+                    buf1 = "";
                     state = fsa_hyp_start_c2;
                 }
                 else
@@ -121,30 +129,32 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
             case fsa_hyp_start_c2:
                 if ((item_mid == -1) && (c == '|'))
                 {
-                    sbuf2 = "";
-                    item_mid = src_pos;
+                    buf2 = "";
+                    item_mid = i;
                 }
                 else
                 if (c == ']')
                     state = fsa_hyp_end;
                 else
                 if(item_mid == -1)
-                    sbuf1 += c;
+                    buf1 += c;
                 else
-                    sbuf2 += c;
+                    buf2 += c;
                 break;
             case fsa_hyp_end:
                 if (c == ']')
                 {
-                    dst_end = dst_start + sbuf2.length() - 1;
+                    dst_end = dst_start + buf2.length() - 1;
                     numhyp += 1;
-                    HyperLinkItem hyp = new HyperLinkItem(g, hyp_mngr, dst_start, dst_end, sbuf2, numhyp, sbuf1);
+                    HyperLinkItem hyp = new HyperLinkItem(g, this.ofs, hyp_mngr, dst_start, dst_end, buf2, numhyp, buf1);
                     // Здесь увеличиваем общее количество. Сами гиперлинки будем регистрировать позже, при разбиении строк.
                     hyp_mngr.incTotal();
                     dst_start = dst_end + 1;
-                    queue.addElement(hyp);
-                    plain_text_start = src_pos + 1;
-                    splain_text = "";
+                    //queue.addElement(hyp);
+                    super.process(hyp);
+                    plain_text_start = i + 1;
+                    plain_text_ofs = ofs;
+                    plain_text = "";
                 }
                 state = fsa_start;
                 break;
@@ -155,7 +165,7 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
                     heading_lvl++;
                 else
                 {
-                    sbuf1 = "" + c;
+                    buf1 = "" + c;
                     state = fsa_heading_title;
                 }
                 break;
@@ -166,7 +176,7 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
                     state = fsa_heading_end;
                 }
                 else
-                    sbuf1 += c;
+                    buf1 += c;
                 break;
             case fsa_heading_end:
                 if (c == '=')
@@ -174,13 +184,15 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
                     heading_lvl_end++;
                     if (heading_lvl_end == heading_lvl)
                     {
-                        dst_end = dst_start + sbuf1.length() - 1;
-                        HeadingItem hdi = new HeadingItem(g, dst_start, dst_end, sbuf1, heading_lvl);
+                        dst_end = dst_start + buf1.length() - 1;
+                        HeadingItem hdi = new HeadingItem(g, this.ofs, dst_start, dst_end, buf1, heading_lvl);
                         dst_start = dst_end + 1;
-                        sbuf1 = "";
-                        queue.addElement(hdi);
-                        plain_text_start = src_pos + 1;
-                        splain_text = "";
+                        buf1 = "";
+                        //queue.addElement(hdi);
+                        super.process(hdi);
+                        plain_text_start = i + 1;
+                        plain_text_ofs = ofs;
+                        plain_text = "";
                         state = fsa_start;
                     }
                 }
@@ -189,6 +201,6 @@ public class FsaWikiParser implements InterfaceCharacterProcessing {
                         state = fsa_start;
                 break;
         }
-        src_pos++;
+        i++;
     }
 }

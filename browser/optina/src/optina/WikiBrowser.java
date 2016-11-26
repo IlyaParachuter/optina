@@ -22,32 +22,32 @@ public class WikiBrowser {
     HyperLinkManager hyp_mngr;
     private MultiLineText MLT;
     private boolean ok;
-    private PrepareLines prep_lines;
-    private Thread prep_thread;
-    private PercentValue parse_percent;
+    //private PercentValue parse_percent;
     private Vector hyp_history;
     private int pos_history;
-    private Timer timerRepaint;
+    //private Timer timerRepaint;
 
-    // Для отладки, чтобы можно было указать строку в качестве источника:
-    private void setSrc(String src, int old_hyp)
+    private void setSrc(String path, int old_hyp)
     {
-        hyp_mngr = new HyperLinkManager();
-        MLT = new MultiLineText(canv, hyp_mngr);
-        parse_percent = new PercentValue();
-        prep_lines = new PrepareLinesFromString(canv, g, hyp_mngr, MLT, src, parse_percent, old_hyp);
-        prep_thread = new Thread(prep_lines);
-        prep_thread.start();
-    }
+        int GrH=canv.getHeight();
+        int GrW=canv.getWidth();
+        int t = 10;
 
-    private void setSrc(InputStream is, int old_hyp)
-    {
         hyp_mngr = new HyperLinkManager();
-        MLT = new MultiLineText(canv, hyp_mngr);
-        parse_percent = new PercentValue();
-        prep_lines = new PrepareLinesFromStream(canv, g, hyp_mngr, MLT, is, parse_percent, old_hyp);
-        prep_thread = new Thread(prep_lines);
-        prep_thread.start();
+        MLT = new MultiLineText(
+                g,
+                canv,
+                hyp_mngr,
+                t,
+                t,
+                GrW - t*2,
+                GrH - t*2,
+                path
+        );
+        //parse_percent = new PercentValue();
+
+        if (old_hyp > -1)
+            hyp_mngr.setCurrent(old_hyp);
     }
 
     private void load(String url)
@@ -81,13 +81,10 @@ public class WikiBrowser {
         WikiUrl wu = new WikiUrl(url);
         String path = wu.getFilePath();
 
-        try
-        {
-            FileConnection fc=(FileConnection)Connector.open(path, Connector.READ);
-            InputStream is= fc.openInputStream();
-
-            setSrc(is, old_hyp);
-        }
+        //try
+        //{
+        setSrc(path, old_hyp);
+        /*}
         catch (IOException ioe)
         {
             // выведем список корней ФС для отладки:
@@ -106,7 +103,7 @@ public class WikiBrowser {
             }
             canv.repaint();
             ok = false;
-        }
+        }*/
     }
 
     public WikiBrowser(Canvas vcanv, Display vd, Graphics vg, String url)
@@ -117,7 +114,7 @@ public class WikiBrowser {
         g = vg;
         hyp_history = new Vector();
         pos_history = -1;
-        timerRepaint = new Timer();
+        //timerRepaint = new Timer();
         load(url);
     }
 
@@ -126,12 +123,12 @@ public class WikiBrowser {
         if (ok)
         {
             // данные готовы?
-            if ((prep_thread != null) && !prep_thread.isAlive())
-            {
-                g.setColor(0x000000);
-                g.fillRect(0, 0, canv.getWidth(), canv.getHeight());
-                MLT.DrawMultStr();
-            }
+            //if ((prep_thread != null) && !prep_thread.isAlive())
+            //{
+            g.setColor(0x000000);
+            g.fillRect(0, 0, canv.getWidth(), canv.getHeight());
+            MLT.DrawMultStr();
+            /*}
             else // рисуем progress bar:
             {
                 g.setColor(0x202520);
@@ -158,7 +155,7 @@ public class WikiBrowser {
                 //canv.repaint();
                 TimerRepaint repaintTask = new TimerRepaint(canv);
                 timerRepaint.schedule(repaintTask, 100);
-            }
+            }*/
         }
     }
     public void PrevHyp()

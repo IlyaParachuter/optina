@@ -16,16 +16,16 @@ public class ItemsLines {
     private Vector lines;
     private ItemsQueue iq;
     
-    public LineOfItems GetLineFromItems(int start, int end)
+    public LineOfItems GetLineFromItems(long start, long end)
     {
         ItemVisitor vis = new ItemVisitor(lines.size());
         BaseItem bi;
 
         while ((bi = iq.peek()) != null)
         {
-            int bi_start = bi.getStart();
-            int bi_end = bi.getEnd();
-            int iend = end - 1;
+            long bi_start = bi.getStart();
+            long bi_end = bi.getEnd();
+            long iend = end - 1;
 
             if ((bi_start >= start) && (bi_end <= iend))
             {
@@ -62,7 +62,7 @@ public class ItemsLines {
         iq = viq;
     }
     
-    public void addElement(int start, int end)
+    public void addElement(long start, long end)
     {lines.addElement(GetLineFromItems(start, end));}
     public int size()
     {return lines.size();}

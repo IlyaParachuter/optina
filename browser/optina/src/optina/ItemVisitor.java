@@ -14,10 +14,10 @@ public class ItemVisitor {
     private LineOfItems line;
     private int ln;
 
-    public ItemVisitor(int vln)
+    public ItemVisitor(int ln)
     {
-        line = new LineOfItems();
-        ln = vln;
+        this.ln = ln;
+        line = new LineOfItems(ln);
     }
     
     public LineOfItems getLine()

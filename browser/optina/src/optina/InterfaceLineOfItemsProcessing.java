@@ -10,9 +10,8 @@ package optina;
  *
  * @author Goncharov.Ilia
  */
-public interface InterfaceCharacterProcessing {
-    void reset();
-    void process(char c, int ofs);
+public interface InterfaceLineOfItemsProcessing {
+    void process(LineOfItems loi);
     void flush();
     void close();
 }

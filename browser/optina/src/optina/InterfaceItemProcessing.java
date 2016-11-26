@@ -3,16 +3,14 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package optina;
 
 /**
  *
  * @author Goncharov.Ilia
  */
-public interface InterfaceCharacterProcessing {
-    void reset();
-    void process(char c, int ofs);
+public interface InterfaceItemProcessing {
+    void process(BaseItem bi);
     void flush();
     void close();
 }

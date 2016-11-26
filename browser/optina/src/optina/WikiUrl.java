@@ -27,6 +27,8 @@ public class WikiUrl {
         if (i > -1)
             res = res.substring(0, i);
 
+        // dbg:
+        //res = "test";
         return "file:///memorycard/opt/" + res;
     }
 }
