@@ -6,34 +6,96 @@ import urllib2
 import re
 import argparse
 from config import Config
-
-import datetime
 import time
-import calendar
 
+class PA(object):
+  def __init__(self, *args):
+    if len(args) == 1:
+      other = args[0]
+      self._part = other.part
+      self._abbr = other.abbr
+    else: # 2
+      part = args[0]
+      abbr = args[1]
+      self._part = part
+      self._abbr = abbr
 
-class PACV:
-  def __init__(self, part, abbr, chap, verse):
-    self.part = part
-    self.abbr = abbr
-    self.chap = chap
-    self.verse = verse
+  @property
+  def as_tuple(self):
+    return (self.part, self.abbr, )
 
   @property
   def part(self):
-    return self.part
+    return self._part
 
   @property
   def abbr(self):
-    return self.abbr
+    return self._abbr
+
+
+class PAC(PA):
+  def __init__(self, *args):
+    len_args = len(args)
+    if len_args == 1:
+      other = args[0]
+      super(PAC, self).__init__(other.pa)
+      self._chap = other.chap
+    elif len_args == 2:
+      pa = args[0]
+      chap = args[1]
+      super(PAC, self).__init__(pa)
+      self._chap = chap
+    else: # 3
+      part = args[0]
+      abbr = args[1]
+      chap = args[2]
+      super(PAC, self).__init__(part, abbr)
+      self._chap = chap
+
+  @property
+  def pa(self):
+    return super(PAC, self)
+
+  @property
+  def as_tuple(self):
+    return self.pa.as_tuple + (self.chap, )
 
   @property
   def chap(self):
-    return self.chap
+    return self._chap
+
+
+class PACV(PAC):
+  def __init__(self, *args):
+    len_args = len(args)
+    if len_args == 1:
+      other = args[0]
+      super(PACV, self).__init__(other.pac)
+      self._verse = other.verse
+    elif len_args == 2:
+      pac = args[0]
+      v = args[1]
+      super(PACV, self).__init__(pac)
+      self._verse = v
+    else: # 4
+      part = args[0]
+      abbr = args[1]
+      chap = args[2]
+      verse = args[3]
+      super(PACV, self).__init__(part, abbr, chap)
+      self._verse = verse
+
+  @property
+  def pac(self):
+    return super(PACV, self)
+
+  @property
+  def as_tuple(self):
+    return self.pac.as_tuple + (self.verse, )
 
   @property
   def verse(self):
-    return self.verse
+    return self._verse
 
 
 class MainApp:
@@ -69,8 +131,8 @@ class MainApp:
         if not os.path.isdir(book_path):
           os.mkdir(book_path)
 
-  def __MkChapDir(self, part, abbr, chap):
-    chap_path = '{}//{}//{}//{}'.format(self.__data_dir, part, abbr, chap)
+  def __MkChapDir(self, pac):
+    chap_path = '{}//{}//{}//{}'.format(self.__data_dir, pac.part, pac.abbr, pac.chap)
     if not os.path.isdir(chap_path):
       os.mkdir(chap_path)
 
@@ -150,8 +212,8 @@ class MainApp:
         self.__lock.release()
 
         
-  def __get_lines(self, part, abbr, chap, prog, lines):
-    if abbr == 'ps':
+  def __get_lines(self, pac, prog, lines):
+    if pac.abbr == 'ps':
       fmt = '%s:%s:%03d:%02d'
     else:
       fmt = '%s:%s:%02d:%02d'
@@ -165,8 +227,8 @@ class MainApp:
         m = prog.match(s)
         if m:
           verse = int(m.group(1))
-          what = fmt % (part, abbr, chap, verse)
-          pacv = PACV(part, abbr, chap, verse)
+          pacv = PACV(pac, verse)
+          what = fmt % pacv.as_tuple
           res = os.path.isfile(self.__pacv2fname(pacv))
           if not res:
             res = self.__get_text(what, pacv) != None
@@ -213,10 +275,10 @@ class MainApp:
     
     return res
 
-  def __get_chapter(self, part, abbr, chap, start, prog):
+  def __get_chapter(self, pac, start, prog):
     res = ([], [])
     lines = map(lambda x: (x, None), start.split('\n'))
-    lst = self.__do_parallel(lines, self.__get_lines, self.__verse_threads_count, (part, abbr, chap, prog))
+    lst = self.__do_parallel(lines, self.__get_lines, self.__verse_threads_count, (pac, prog))
     self.__lock.acquire()
     for l in lst:
       v = l[1]
@@ -250,25 +312,27 @@ class MainApp:
     
     return res
 
-  def __get_book(self, part, abbr):
+  def __get_book(self, pa):
     chap = 1
     res = True
     while res:
-      if abbr == 'ps':
+      if pa.abbr == 'ps':
         fmt = '%s:%s:%03d'
         fmtp = ':*%s[:;]%s[:;]%03d'
       else:
         fmt = '%s:%s:%02d'
         fmtp = ':*%s[:;]%s[:;]%02d'
 
-      pacv = PACV(part, abbr, chap, 'start')
-      self.__MkChapDir(part, abbr, chap)
-      res = self.__get_text((fmt + ':start') % (part, abbr, chap), pacv)
+      pac = PAC(pa, chap)
+      pacv = PACV(pac, 'start')
+      self.__MkChapDir(pac)
+      pac_tuple = pac.as_tuple
+      res = self.__get_text((fmt + ':start') % pac_tuple, pacv)
       if res:
-        pattern = ('.*\[\[%s[:;](\d+)\|' % fmtp) % (part, abbr, chap)
+        pattern = ('.*\[\[%s[:;](\d+)\|' % fmtp) % pac_tuple
         prog = re.compile(pattern)
         
-        absent, downloaded = self.__get_chapter(part, abbr, chap, res, prog)
+        absent, downloaded = self.__get_chapter(pac, res, prog)
         self.__lock.acquire()
 
         s = ''
@@ -282,21 +346,22 @@ class MainApp:
           s += 'absent: %s' % self.__get_ranges(absent)
           
         if len(s) == 0:
-          print (fmt +  ' is ok.') % (part, abbr, chap)
+          print (fmt +  ' is ok.') % pac_tuple
         else:
-          print (fmt + ' ' + s) % (part, abbr, chap)
+          print (fmt + ' ' + s) % pac_tuple
 
         self.__lock.release()
 
         chap += 1
 
     self.__lock.acquire()
-    print '%s:%s is ok.' % (part, abbr)
+    print '%s:%s is ok.' % pa.as_tuple
     self.__lock.release()
 
   def __get_books(self, a):
     for part, abbr in a:
-      self.__get_book(part, abbr)
+      pa = PA(part, abbr)
+      self.__get_book(pa)
 
   def __init__(self):
     argparser = argparse.ArgumentParser(description='Collect opt. wiki.')
@@ -384,14 +449,11 @@ class MainApp:
       while True:
         base_url = 'http://bible.optina.ru/'
         what = 'feed.php?num=%d' % num
-        #print 'url = %s%s' % (base_url, what)
         res = self.__read_text(base_url, what)
         feed = feedparser.parse(res)
 
         last_data = first_data
         lst = []
-        #print 'len = %s' % len(feed['entries'])
-        #for i in range(num):
         real_num = len(feed['entries'])
         for i in range(real_num):
           evt_data = time.mktime(feed['entries'][i]['updated_parsed']) - time.timezone
@@ -406,9 +468,7 @@ class MainApp:
         
         lst_len = len(lst)
 
-        #if lst_len < num:
         if lst_len < real_num:
-          #print 'Hit %d from %d entries!' % (lst_len, num)
           print 'Hit %d from %d entries!' % (lst_len, real_num)
           break
         
@@ -426,7 +486,6 @@ class MainApp:
         prog = re.compile(r'(\w+:\w+:\d+:(?:\d+|start))')
         for i in range(len(lst)):
           evt = lst[i]
-          #print evt[1], prog.match(evt[1])
           m = prog.match(evt[1])
           lst[i] = evt[0], m.group(1)
         
