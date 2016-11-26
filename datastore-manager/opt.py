@@ -12,8 +12,32 @@ import time
 import calendar
 
 
-class MainApp:
+class PACV:
+  def __init__(self, part, abbr, chap, verse):
+    self.part = part
+    self.abbr = abbr
+    self.chap = chap
+    self.verse = verse
 
+  @property
+  def part(self):
+    return self.part
+
+  @property
+  def abbr(self):
+    return self.abbr
+
+  @property
+  def chap(self):
+    return self.chap
+
+  @property
+  def verse(self):
+    return self.verse
+
+
+class MainApp:
+  '''
   __books = {
     'old' : ['gen', 'ish', 'lev', 'chis', 'vtor', 'nav', 'sud', 'ruf',
              '1ts', '2ts', '3ts', '4ts', '1par', '2par', 'ezd', 'neem',
@@ -30,10 +54,20 @@ class MainApp:
 
   '''
   __books = {
-    'old' : ['gen'],
-    'new' : []
+    'old' : ['gen', 'ish'],
+    'new' : ['mf', 'mk']
   }
-  '''
+
+  def __MkTree(self):
+    for part in self.__books:
+      part_path = self.__data_dir + '\\' + part + '\\'
+      if not os.path.isdir(part_path):
+        os.mkdir(part_path)
+
+      for book in self.__books[part]:
+        book_path = part_path + book
+        if not os.path.isdir(book_path):
+          os.mkdir(book_path)
 
   def __read_text(self, base_url, what, size = None):
     res = ''
@@ -242,7 +276,7 @@ class MainApp:
 
         self.__lock.release()
 
-        chap = chap + 1
+        chap += 1
 
     self.__lock.acquire()
     print '%s:%s is ok.' % (part, abbr)
@@ -267,7 +301,7 @@ class MainApp:
       os.makedirs(self.__data_dir)
 
     if cfg.proxy.get('type', 'none') == 'http':
-      proxy = urllib2.ProxyHandler({'http': '%s:%d' % (cfg.proxy.get('address', '127.0.0.1'), cfg.proxy.get('port', 9999))})
+      proxy = urllib2.ProxyHandler({'http': '%s:%d' % (cfg.proxy.get('address', '127.0.0.1'), cfg.proxy.get('port', 3128))})
       self.__opener = urllib2.build_opener(proxy)
     else:
       self.__opener = urllib2.build_opener()
@@ -311,6 +345,7 @@ class MainApp:
   def run(self):
     cfg = self.__cfg
     if self.__args.download:
+      self.__MkTree()
       if self.__get_text('') != None:
         total_books = 0
         all_lin = []
