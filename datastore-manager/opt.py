@@ -69,6 +69,11 @@ class MainApp:
         if not os.path.isdir(book_path):
           os.mkdir(book_path)
 
+  def __MkChapDir(self, part, abbr, chap):
+    chap_path = '{}//{}//{}//{}'.format(self.__data_dir, part, abbr, chap)
+    if not os.path.isdir(chap_path):
+      os.mkdir(chap_path)
+
   def __read_text(self, base_url, what, size = None):
     res = ''
     retries_count = 0
@@ -76,7 +81,7 @@ class MainApp:
     while True:
       try:
         f_in = self.__opener.open(base_url + what)
-      except httplib.HTTPError:
+      except httplib.HTTPException:
         break
       
       try:
@@ -97,12 +102,16 @@ class MainApp:
 
     return res
 
-  def __what2fname(self, what):
-    return self.__data_dir + '\\' + (len(what) and what.replace(':', '_') or 'start')
+  def __pacv2fname(self, pacv):
+    data_dir = self.__data_dir
+    return (pacv is None) and '{}\\start'.format(data_dir) or '{}\\{}\\{}\\{}\\{}'.format(data_dir, pacv.part, pacv.abbr, pacv.chap, pacv.verse)
 
-  def __get_text(self, what):
+  def __get_text(self, what=None, pacv=None):
+    if what is None:
+      what = ''
+
     res = None
-    fname = self.__what2fname(what)
+    fname = self.__pacv2fname(pacv)
     if os.path.isfile(fname):
         f_out = open(fname, 'r')
         res = f_out.read()
@@ -157,9 +166,10 @@ class MainApp:
         if m:
           verse = int(m.group(1))
           what = fmt % (part, abbr, chap, verse)
-          res = os.path.isfile(self.__what2fname(what))
+          pacv = PACV(part, abbr, chap, verse)
+          res = os.path.isfile(self.__pacv2fname(pacv))
           if not res:
-            res = self.__get_text(what) != None
+            res = self.__get_text(what, pacv) != None
             self.__lock.acquire()
             l = lines[i][0]
             lines[i] = (l, verse, res)
@@ -251,7 +261,9 @@ class MainApp:
         fmt = '%s:%s:%02d'
         fmtp = ':*%s[:;]%s[:;]%02d'
 
-      res = self.__get_text((fmt + ':start') % (part, abbr, chap))
+      pacv = PACV(part, abbr, chap, 'start')
+      self.__MkChapDir(part, abbr, chap)
+      res = self.__get_text((fmt + ':start') % (part, abbr, chap), pacv)
       if res:
         pattern = ('.*\[\[%s[:;](\d+)\|' % fmtp) % (part, abbr, chap)
         prog = re.compile(pattern)
@@ -346,7 +358,7 @@ class MainApp:
     cfg = self.__cfg
     if self.__args.download:
       self.__MkTree()
-      if self.__get_text('') != None:
+      if self.__get_text() != None:
         total_books = 0
         all_lin = []
         for k in self.__books.keys():
