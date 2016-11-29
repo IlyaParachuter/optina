@@ -155,9 +155,9 @@ class MainApp:
         i = i - 1
         retries_count = self.__max_retries - i
         if retries_count <= self.__max_retries:
-          self.__lock.acquire()
-          print '%s retry # %d' % (what, retries_count)
-          self.__lock.release()
+          with self.__lock:
+            print '%s retry # %d' % (what, retries_count)
+
         else:
           raise httplib.IncompleteRead
           break
@@ -196,22 +196,20 @@ class MainApp:
       fname = self.__what2fname(v[1])
       bExists = os.path.exists(fname)
       if not bExists:
-        self.__lock.acquire()
-        print '%s: %s [download]' % (stime, v[1])
-        self.__lock.release()
+        with self.__lock:
+          print '%s: %s [download]' % (stime, v[1])
+
         self.__get_text(v[1])
       elif evt_time > os.path.getmtime(fname):
-        self.__lock.acquire()
-        print '%s: %s [update]' % (stime, v[1])
-        self.__lock.release()
+        with self.__lock:
+          print '%s: %s [update]' % (stime, v[1])
+
         os.remove(fname)
         self.__get_text(v[1])
       else:
-        self.__lock.acquire()
-        print '%s: %s [skip]' % (stime, v[1])
-        self.__lock.release()
+        with self.__lock:
+          print '%s: %s [skip]' % (stime, v[1])
 
-        
   def __get_lines(self, pac, prog, lines):
     if pac.abbr == 'ps':
       fmt = '%s:%s:%03d:%02d'
@@ -232,10 +230,9 @@ class MainApp:
           res = os.path.isfile(self.__pacv2fname(pacv))
           if not res:
             res = self.__get_text(what, pacv) != None
-            self.__lock.acquire()
-            l = lines[i][0]
-            lines[i] = (l, verse, res)
-            self.__lock.release()
+            with self.__lock:
+              l = lines[i][0]
+              lines[i] = (l, verse, res)
 
       i = i + 1
 
@@ -279,15 +276,14 @@ class MainApp:
     res = ([], [])
     lines = map(lambda x: (x, None), start.split('\n'))
     lst = self.__do_parallel(lines, self.__get_lines, self.__verse_threads_count, (pac, prog))
-    self.__lock.acquire()
-    for l in lst:
-      v = l[1]
-      if v != None:
-        res[l[2] and 1 or 0].append(v)
+    with self.__lock:
+      for l in lst:
+        v = l[1]
+        if v != None:
+          res[l[2] and 1 or 0].append(v)
 
-    self.__lock.release()
     return res
-  
+  # iez:27 ??
   def __get_ranges(self, a):
     res = ''
     a_len = len(a)
@@ -297,7 +293,7 @@ class MainApp:
       range_len = 0
       for v in a[1:]:
         if v - v_old > 1:
-          if range_len > 1:
+          if range_len > 0:
             res += '..%d' % v_old
           
           res += ', %d' % v
@@ -307,7 +303,7 @@ class MainApp:
         
         v_old = v
       
-      if range_len > 1:
+      if range_len > 0:
         res += '..%d' % v_old
     
     return res
@@ -333,30 +329,26 @@ class MainApp:
         prog = re.compile(pattern)
         
         absent, downloaded = self.__get_chapter(pac, res, prog)
-        self.__lock.acquire()
+        with self.__lock:
+          s = ''
+          if len(downloaded):
+            s += 'downloaded: %s' % self.__get_ranges(downloaded)
 
-        s = ''
-        if len(downloaded):
-          s += 'downloaded: %s' % self.__get_ranges(downloaded)
+          if len(absent):
+            if len(s):
+              s += '; '
 
-        if len(absent):
-          if len(s):
-            s += '; '
+            s += 'absent: %s' % self.__get_ranges(absent)
 
-          s += 'absent: %s' % self.__get_ranges(absent)
-          
-        if len(s) == 0:
-          print (fmt +  ' is ok.') % pac_tuple
-        else:
-          print (fmt + ' ' + s) % pac_tuple
-
-        self.__lock.release()
+          if len(s) == 0:
+            print (fmt +  ' is ok.') % pac_tuple
+          else:
+            print (fmt + ' ' + s) % pac_tuple
 
         chap += 1
 
-    self.__lock.acquire()
-    print '%s:%s is ok.' % pa.as_tuple
-    self.__lock.release()
+    with self.__lock:
+      print '%s:%s is ok.' % pa.as_tuple
 
   def __get_books(self, a):
     for part, abbr in a:
