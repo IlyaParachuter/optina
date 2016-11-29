@@ -136,6 +136,8 @@ class MainApp:
     if not os.path.isdir(chap_path):
       os.mkdir(chap_path)
 
+    return chap_path
+
   def __read_text(self, base_url, what, size = None):
     res = ''
     retries_count = 0
@@ -212,7 +214,10 @@ class MainApp:
 
   def __get_lines(self, pac, prog, lines):
     if pac.abbr == 'ps':
-      fmt = '%s:%s:%03d:%02d'
+      if pac.chap == 118:
+        fmt = '%s:%s:%03d:%03d'
+      else:
+        fmt = '%s:%s:%03d:%02d'
     else:
       fmt = '%s:%s:%02d:%02d'
 
@@ -321,7 +326,7 @@ class MainApp:
 
       pac = PAC(pa, chap)
       pacv = PACV(pac, 'start')
-      self.__MkChapDir(pac)
+      chap_path = self.__MkChapDir(pac)
       pac_tuple = pac.as_tuple
       res = self.__get_text((fmt + ':start') % pac_tuple, pacv)
       if res:
@@ -346,6 +351,8 @@ class MainApp:
             print (fmt + ' ' + s) % pac_tuple
 
         chap += 1
+      else:
+        os.rmdir(chap_path)
 
     with self.__lock:
       print '%s:%s is ok.' % pa.as_tuple
