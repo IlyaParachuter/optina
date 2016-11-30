@@ -166,6 +166,16 @@ class MainApp:
 
     return res
 
+  def __what2pacv(self, what):
+    res = None
+    prog = re.compile(r'(\w+)[:;](\w+)[:;](\d+)[:;](\d+|start)')
+    m = prog.match(what)
+    if m:
+      data_dir = self.__data_dir
+      res = PACV(m.group(1), m.group(2), m.group(3), m.group(4))
+
+    return res
+
   def __pacv2fname(self, pacv):
     data_dir = self.__data_dir
     return (pacv is None) and '{}\\start'.format(data_dir) or '{}\\{}\\{}\\{}\\{}'.format(data_dir, pacv.part, pacv.abbr, pacv.chap, pacv.verse)
@@ -194,7 +204,7 @@ class MainApp:
   def __get_u_verse(self, v):
     stime = time.strftime('%d.%m.%Y %H:%M:%S', v[0])
     evt_time = time.mktime(v[0])
-    fname = self.__what2fname(v[1])
+    fname = self.__pacv2fname(self.__what2pacv(v[1]))
     bExists = os.path.exists(fname)
     if not bExists:
       with self.__lock:
@@ -445,7 +455,7 @@ class MainApp:
           break
 
       if not max_num or (num <= max_num):
-        prog = re.compile(r'(\w+:\w+:\d+:(?:\d+|start))')
+        prog = re.compile(r'(\w+[:;]\w+[:;]\d+[:;](?:\d+|start))')
         for i in range(len(lst)):
           evt = lst[i]
           m = prog.search(evt[1])
