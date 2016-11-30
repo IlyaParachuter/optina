@@ -9,6 +9,7 @@ import argparse
 from config import Config
 import time
 from multiprocessing.dummy import Pool
+from functools import partial
 
 class PA(object):
   def __init__(self, *args):
@@ -97,38 +98,6 @@ class PACV(PAC):
   def verse(self):
     return self._verse
 
-class VerseGetter:
-  def __init__(self, main_app, pac, prog):
-    self.main_app = main_app
-    self.pac = pac
-    self.prog = prog
-
-  def get_verse(self, line):
-    if self.pac.abbr == 'ps':
-      if self.pac.chap == 118:
-        fmt = '%s:%s:%03d:%03d'
-      else:
-        fmt = '%s:%s:%03d:%02d'
-    else:
-      fmt = '%s:%s:%02d:%02d'
-
-    result = line
-    s = line[0]
-    if len(s) > 0:
-      m = self.prog.match(s)
-      if m:
-        verse = int(m.group(1))
-        pacv = PACV(self.pac, verse)
-        what = fmt % pacv.as_tuple
-        res = os.path.isfile(self.main_app.pacv2fname(pacv))
-        if not res:
-          res = self.main_app.get_text(what, pacv) != None
-          with self.main_app.lock:
-            l = line[0]
-            result = (l, verse, res)
-
-    return result
-
 class MainApp:
   '''
   __books = {
@@ -188,7 +157,7 @@ class MainApp:
         i -= 1
         retries_count = self.__max_retries - i
         if retries_count <= self.__max_retries:
-          with self.lock:
+          with self.__lock:
             print '%s retry # %d' % (what, retries_count)
 
         else:
@@ -197,16 +166,16 @@ class MainApp:
 
     return res
 
-  def pacv2fname(self, pacv):
+  def __pacv2fname(self, pacv):
     data_dir = self.__data_dir
     return (pacv is None) and '{}\\start'.format(data_dir) or '{}\\{}\\{}\\{}\\{}'.format(data_dir, pacv.part, pacv.abbr, pacv.chap, pacv.verse)
 
-  def get_text(self, what=None, pacv=None):
+  def __get_text(self, what=None, pacv=None):
     if what is None:
       what = ''
 
     res = None
-    fname = self.pacv2fname(pacv)
+    fname = self.__pacv2fname(pacv)
     if os.path.isfile(fname):
         f_out = open(fname, 'r')
         res = f_out.read()
@@ -222,35 +191,62 @@ class MainApp:
     
     return res
   
-  def __get_verse(self, v):
+  def __get_u_verse(self, v):
     stime = time.strftime('%d.%m.%Y %H:%M:%S', v[0])
     evt_time = time.mktime(v[0])
     fname = self.__what2fname(v[1])
     bExists = os.path.exists(fname)
     if not bExists:
-      with self.lock:
+      with self.__lock:
         print '%s: %s [download]' % (stime, v[1])
 
-      self.get_text(v[1])
+      self.__get_text(v[1])
     elif evt_time > os.path.getmtime(fname):
-      with self.lock:
+      with self.__lock:
         print '%s: %s [update]' % (stime, v[1])
 
       os.remove(fname)
-      self.get_text(v[1])
+      self.__get_text(v[1])
     else:
-      with self.lock:
+      with self.__lock:
         print '%s: %s [skip]' % (stime, v[1])
+
+  def __get_d_verse(self, pac, prog, fmt, line):
+    result = line
+    s = line[0]
+    if len(s) > 0:
+      m = prog.match(s)
+      if m:
+        verse = int(m.group(1))
+        pacv = PACV(pac, verse)
+        what = fmt % pacv.as_tuple
+        res = os.path.isfile(self.__pacv2fname(pacv))
+        if not res:
+          res = self.__get_text(what, pacv) != None
+          with self.__lock:
+            l = line[0]
+            result = (l, verse, res)
+
+    return result
 
   def __get_chapter(self, pac, start, prog):
     res = ([], [])
+
+    if pac.abbr == 'ps':
+      if pac.chap == 118:
+        fmt = '%s:%s:%03d:%03d'
+      else:
+        fmt = '%s:%s:%03d:%02d'
+    else:
+      fmt = '%s:%s:%02d:%02d'
+
     lines = map(lambda x: (x, None), start.split('\n'))
     pool = Pool(self.__verse_threads_count)
-    vg = VerseGetter(self, pac, prog)
-    lst = pool.map(vg.get_verse, lines)
+    lst = pool.map(partial(self.__get_d_verse, pac, prog, fmt), lines)
     pool.close()
     pool.join()
-    with self.lock:
+
+    with self.__lock:
       for l in lst:
         v = l[1]
         if v != None:
@@ -297,13 +293,13 @@ class MainApp:
       pacv = PACV(pac, 'start')
       chap_path = self.__MkChapDir(pac)
       pac_tuple = pac.as_tuple
-      res = self.get_text((fmt + ':start') % pac_tuple, pacv)
+      res = self.__get_text((fmt + ':start') % pac_tuple, pacv)
       if res:
         pattern = ('.*\[\[%s[:;](\d+)\|' % fmtp) % pac_tuple
         prog = re.compile(pattern)
         
         absent, downloaded = self.__get_chapter(pac, res, prog)
-        with self.lock:
+        with self.__lock:
           s = ''
           if len(downloaded):
             s += 'downloaded: %s' % self.__get_ranges(downloaded)
@@ -323,7 +319,7 @@ class MainApp:
       else:
         os.rmdir(chap_path)
 
-    with self.lock:
+    with self.__lock:
       print '%s:%s is ok.' % pa.as_tuple
 
   def __init__(self):
@@ -354,7 +350,7 @@ class MainApp:
     self.__html_sig = cfg.http.get('html_sig', '<!DOCTYPE html')
     self.__html_sig_length = len(self.__html_sig)
     self.__max_retries = cfg.http.get('max_retries', 33)
-    self.lock = threading.Lock()
+    self.__lock = threading.Lock()
 
   def __first_modified_file(self):
     import glob
@@ -386,7 +382,7 @@ class MainApp:
     cfg = self.__cfg
     if self.__args.download:
       self.__MkTree()
-      if self.get_text() != None:
+      if self.__get_text() != None:
         total_books = 0
         all_lin = []
         for k in self.__books.keys():
@@ -458,7 +454,7 @@ class MainApp:
         update_threads_count = cfg.common.get('update_threads_count', 4)
         if lst_len:
           pool = Pool(update_threads_count)
-          pool.map(self.__get_verse, lst)
+          pool.map(self.__get_u_verse, lst)
           pool.close()
           pool.join()
         
@@ -466,4 +462,5 @@ class MainApp:
           self.__touch_files(last_data)
           print 'Ok!'
 
-MainApp().run()
+if __name__ == '__main__':
+  MainApp().run()
